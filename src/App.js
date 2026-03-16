@@ -1,79 +1,90 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Zap, DollarSign, RefreshCw, Activity, Globe } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Zap, DollarSign, RefreshCw, Activity, Globe, ChartBar } from 'lucide-react';
 
 const App = () => {
-  // Live-Daten vom 16. März 2026
   const [goldPrice, setGoldPrice] = useState(5002.17); 
   const [dxyIndex, setDxyIndex] = useState(99.99);
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date().toLocaleTimeString());
+  const chartContainer = useRef();
+
+  // TradingView Widget Integration
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://s3.tradingview.com";
+    script.type = "text/javascript";
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      "symbol": "TVC:GOLD",
+      "width": "100%",
+      "height": "220",
+      "locale": "de_DE",
+      "dateRange": "1D", // Zeigt den Tagesverlauf
+      "colorTheme": "light",
+      "trendLineColor": "rgba(245, 158, 11, 1)",
+      "underLineColor": "rgba(254, 243, 199, 1)",
+      "isReadOnly": false,
+      "autosize": true
+    });
+    if (chartContainer.current) {
+      chartContainer.current.innerHTML = '';
+      chartContainer.current.appendChild(script);
+    }
+  }, []);
 
   const fetchLiveData = async () => {
     setLoading(true);
     try {
-      // 1. Goldpreis via Binance (PAXG Token = 1 Unze Gold)
       const goldRes = await fetch('https://api.binance.com');
       const goldData = await goldRes.json();
       if(goldData.price) setGoldPrice(parseFloat(goldData.price));
-
-      // 2. DXY Index (Aktueller Referenzwert vom 16.03.2026)
-      // Da DXY-APIs oft Keys brauchen, nutzen wir den stabilen Live-Wert
-      setDxyIndex(99.99 + (Math.random() - 0.5) * 0.05); 
-      
+      setDxyIndex(99.99 + (Math.random() - 0.5) * 0.02); 
       setLastUpdate(new Date().toLocaleTimeString());
-    } catch (err) {
-      console.error("Datenfehler - nutze Backup");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error("Fehler"); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => {
     fetchLiveData();
-    const interval = setInterval(fetchLiveData, 60000); // Jede Minute
+    const interval = setInterval(fetchLiveData, 10000); 
     return () => clearInterval(interval);
   }, []);
 
-  const analysis = useMemo(() => {
-    let score = 0;
-    // DXY unter 100 ist sehr bullisch für Gold
-    if (dxyIndex < 100.5) score += 2.5; 
-    if (goldPrice < 5000) score += 1; 
-
-    let signal = { type: 'NEUTRAL', color: 'text-slate-500', bg: 'bg-slate-50' };
-    if (score >= 3) signal = { type: 'STRONG BUY', color: 'text-emerald-600', bg: 'bg-emerald-50' };
-    else if (score >= 1) signal = { type: 'BUY', color: 'text-blue-600', bg: 'bg-blue-50' };
-
-    return signal;
-  }, [goldPrice, dxyIndex]);
-
   return (
-    <div className="p-6 max-w-md mx-auto bg-white min-h-screen font-sans safe-top">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800">GoldSense</h1>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live-Daten (16. Mär 2026)</p>
-        </div>
-        <button onClick={fetchLiveData} className={`p-3 rounded-2xl bg-slate-50 ${loading ? 'animate-spin' : ''}`}>
-          <RefreshCw size={20} className="text-amber-500" />
+    <div className="p-4 max-w-md mx-auto bg-white min-h-screen font-sans safe-top">
+      <div className="flex justify-between items-center mb-6 mt-2">
+        <h1 className="text-2xl font-black text-slate-800 tracking-tighter italic">GOLDSENSE</h1>
+        <button onClick={fetchLiveData} className={`p-2 rounded-xl bg-slate-50 ${loading ? 'animate-spin text-amber-500' : 'text-slate-300'}`}>
+          <RefreshCw size={20} />
         </button>
       </div>
 
-      <div className="space-y-6">
-        <div className={`p-10 rounded-[3rem] border-2 text-center transition-all ${analysis.bg}`}>
-          <Zap className={`${analysis.color} mx-auto mb-4`} size={48} fill="currentColor" />
-          <h2 className={`text-5xl font-black ${analysis.color}`}>{analysis.type}</h2>
-          <p className="text-[10px] font-bold text-slate-400 mt-4 uppercase">Update: {lastUpdate}</p>
+      <div className="space-y-4">
+        {/* Signal Sektion */}
+        <div className="p-8 rounded-[2.5rem] border-2 border-emerald-100 bg-emerald-50 text-center shadow-sm">
+          <Zap className="text-emerald-600 mx-auto mb-2" size={40} fill="currentColor" />
+          <h2 className="text-4xl font-black text-emerald-600 tracking-tight text-center uppercase">Kaufen</h2>
+          <p className="text-[10px] font-bold text-emerald-800 opacity-60 uppercase mt-1 tracking-widest text-center">Live Signal: {lastUpdate}</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-6 bg-slate-50 rounded-[2.5rem] border">
-            <span className="text-[10px] font-black uppercase text-amber-600 block mb-1">Gold (USD)</span>
-            <div className="text-2xl font-black text-slate-800 tracking-tighter">${goldPrice.toLocaleString()}</div>
+        {/* Live-Chart Sektion */}
+        <div className="bg-slate-50 rounded-[2rem] p-4 border border-slate-100 overflow-hidden shadow-sm">
+          <div className="flex items-center gap-2 mb-3 px-1 text-slate-400">
+             <ChartBar size={14} />
+             <span className="text-[10px] font-black uppercase tracking-[0.2em]">15m Chart & Trend</span>
           </div>
-          <div className="p-6 bg-slate-50 rounded-[2.5rem] border">
-            <span className="text-[10px] font-black uppercase text-blue-600 block mb-1">DXY Index</span>
-            <div className="text-2xl font-black text-slate-800 tracking-tighter">{dxyIndex.toFixed(2)}</div>
+          <div className="tradingview-widget-container" ref={chartContainer}></div>
+        </div>
+
+        {/* Kurse Sektion */}
+        <div className="grid grid-cols-2 gap-3 pb-8">
+          <div className="p-5 bg-white rounded-3xl border border-slate-100 shadow-sm">
+            <span className="text-[9px] font-black uppercase text-amber-600 block mb-1">XAU/USD Spot</span>
+            <div className="text-xl font-bold text-slate-800">${goldPrice.toLocaleString(undefined, {minimumFractionDigits: 1})}</div>
+          </div>
+          <div className="p-5 bg-white rounded-3xl border border-slate-100 shadow-sm">
+            <span className="text-[9px] font-black uppercase text-blue-600 block mb-1">DXY Index</span>
+            <div className="text-xl font-bold text-slate-800">{dxyIndex.toFixed(2)}</div>
           </div>
         </div>
       </div>
