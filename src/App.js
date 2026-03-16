@@ -1,98 +1,96 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, Globe, Settings, Activity, Zap, DollarSign, RefreshCw } from 'lucide-react';
+import { Zap, DollarSign, RefreshCw, Activity } from 'lucide-react';
 
 const App = () => {
-  // Aktueller Marktwert (Stand: 16. März 2026)
-  const [goldPrice, setGoldPrice] = useState(5012.26); 
-  const [dxyIndex, setDxyIndex] = useState(104.15);
-  const [loading, setLoading] = useState(false);
-  const [geopolitics, setGeopolitics] = useState('Stabil'); 
+  // DEINEN SCHLÜSSEL HIER EINTRAGEN:
+  const API_KEY = goldapi-bg1419mmtox29w-io; 
+
+  const [goldPrice, setGoldPrice] = useState(0);
+  const [dxyIndex, setDxyIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('signals');
 
-  // Funktion zum manuellen Abgleich oder Simulation
-  const fetchPrices = async () => {
+  const fetchLiveData = async () => {
     setLoading(true);
-    // Hier nutzen wir eine stabilere Simulation, da kostenlose APIs oft offline sind
-    setTimeout(() => {
-      const volatility = (Math.random() - 0.5) * 5;
-      setGoldPrice(prev => Number((prev + volatility).toFixed(2)));
-      setDxyIndex(104.1 + Math.random() * 0.2);
+    setError(null);
+    try {
+      // 1. Live Goldpreis laden
+      const goldRes = await fetch("https://www.goldapi.io", {
+        headers: { "x-access-token": API_KEY }
+      });
+      const goldData = await goldRes.json();
+      
+      // 2. Live Dollar-Index (DXY) laden
+      const dxyRes = await fetch("https://www.goldapi.io", {
+        headers: { "x-access-token": API_KEY }
+      });
+      const dxyData = await dxyRes.json();
+
+      if (goldData.price) setGoldPrice(goldData.price);
+      if (dxyData.price) setDxyIndex(dxyData.price);
+      
+    } catch (err) {
+      setError("API-Limit erreicht oder Key falsch.");
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
+  useEffect(() => {
+    fetchLiveData();
+    const interval = setInterval(fetchLiveData, 300000); // Alle 5 Min aktualisieren
+    return () => clearInterval(interval);
+  }, []);
+
   const analysis = useMemo(() => {
-    // RSI Logik (relativ zum neuen Preisniveau von ~5000$)
-    const rsi = 45 + (Math.sin(goldPrice / 20) * 15); 
+    if (!goldPrice || !dxyIndex) return null;
+    
     let score = 0;
-    
-    if (rsi < 40) score += 2;
-    if (dxyIndex < 103.8) score += 1.5;
-    if (geopolitics === 'Krise') score += 3;
-    
-    if (rsi > 60) score -= 2;
-    if (dxyIndex > 104.5) score -= 1.5;
+    // Gold/DXY Korrelation: DXY runter -> Gold hoch
+    if (dxyIndex < 101.5) score += 2;
+    if (dxyIndex > 103.5) score -= 2;
 
-    let signal = { type: 'NEUTRAL', label: 'Beobachten', color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' };
-    if (score >= 3) signal = { type: 'STRONG BUY', label: 'Kaufen', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' };
-    else if (score >= 1) signal = { type: 'BUY', label: 'Long-Einstieg', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
-    else if (score <= -1.5) signal = { type: 'SELL', label: 'Gewinne sichern', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' };
+    let signal = { type: 'NEUTRAL', color: 'text-slate-500', bg: 'bg-slate-50' };
+    if (score >= 2) signal = { type: 'STRONG BUY', color: 'text-emerald-600', bg: 'bg-emerald-50' };
+    if (score <= -2) signal = { type: 'SELL', color: 'text-red-600', bg: 'bg-red-50' };
 
-    return { score, signal, rsi };
-  }, [goldPrice, dxyIndex, geopolitics]);
+    return signal;
+  }, [goldPrice, dxyIndex]);
 
   return (
-    <div className="p-4 max-w-md mx-auto bg-white min-h-screen font-sans">
-      <div className="flex justify-between items-center mb-6 mt-4">
-        <div className="flex items-center gap-2">
-          <div className="bg-amber-500 p-2 rounded-xl text-white shadow-lg"><DollarSign size={20}/></div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-800">GoldSense</h1>
-        </div>
-        <button onClick={fetchPrices} className={`p-2 rounded-full transition-all ${loading ? 'animate-spin' : 'hover:bg-slate-100'}`}>
-          <RefreshCw size={18} className="text-slate-400" />
+    <div className="p-6 max-w-md mx-auto bg-white min-h-screen font-sans">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <div className="bg-amber-500 p-1.5 rounded-lg text-white"><DollarSign size={20}/></div>
+          GoldSense Live
+        </h1>
+        <button onClick={fetchLiveData} className={`${loading ? 'animate-spin' : ''}`}>
+          <RefreshCw size={20} className="text-slate-400" />
         </button>
       </div>
 
-      <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 mb-6">
-        <button onClick={() => setActiveTab('signals')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${activeTab === 'signals' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}`}>DASHBOARD</button>
-        <button onClick={() => setActiveTab('settings')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${activeTab === 'settings' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}`}>MARKTDATEN</button>
-      </div>
+      {error && <div className="p-4 mb-4 bg-red-50 text-red-600 rounded-2xl text-xs font-bold">{error}</div>}
 
-      {activeTab === 'signals' ? (
-        <div className="space-y-4">
-          <div className={`p-8 rounded-[2.5rem] border-2 ${analysis.signal.bg} ${analysis.signal.border} text-center transition-colors duration-500`}>
-            <Zap className={`${analysis.signal.color} mx-auto mb-4`} size={48} fill="currentColor" />
-            <h2 className={`text-5xl font-black mb-2 ${analysis.signal.color}`}>{analysis.signal.type}</h2>
-            <p className="font-bold text-slate-700">{analysis.signal.label}</p>
+      <div className="space-y-4">
+        {analysis && (
+          <div className={`p-10 rounded-[2.5rem] border-2 ${analysis.bg} text-center`}>
+            <Zap className={`${analysis.color} mx-auto mb-4`} size={48} fill="currentColor" />
+            <h2 className={`text-5xl font-black ${analysis.color}`}>{analysis.type}</h2>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-5 bg-slate-50 rounded-[2rem] border border-slate-100">
-              <div className="text-slate-400 text-[10px] font-black uppercase mb-1">XAU/USD</div>
-              <div className="text-xl font-bold text-slate-800">${goldPrice.toLocaleString()}</div>
-            </div>
-            <div className="p-5 bg-slate-50 rounded-[2rem] border border-slate-100">
-              <div className="text-slate-400 text-[10px] font-black uppercase mb-1">DXY Index</div>
-              <div className="text-xl font-bold text-slate-800">{dxyIndex.toFixed(2)}</div>
-            </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-6 bg-slate-50 rounded-[2rem] border">
+            <p className="text-[10px] font-black text-slate-400 uppercase mb-1">XAU/USD (Live)</p>
+            <p className="text-2xl font-bold">${goldPrice.toLocaleString()}</p>
           </div>
-        </div>
-      ) : (
-        <div className="space-y-6 animate-in slide-in-from-bottom-4">
-          <div className="p-5 bg-amber-50 rounded-3xl border border-amber-100">
-            <label className="block text-xs font-black uppercase tracking-wider text-amber-700 mb-3">Manuelle Kurskorrektur</label>
-            <input type="range" min="4500" max="5500" step="1" value={goldPrice} onChange={(e) => setGoldPrice(Number(e.target.value))} className="w-full h-1.5 bg-amber-200 rounded-lg appearance-none accent-amber-600 mb-2" />
-            <div className="text-right font-mono text-sm text-amber-800 font-bold">${goldPrice}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-3">Geopolitische Lage</label>
-            <select value={geopolitics} onChange={(e) => setGeopolitics(e.target.value)} className="w-full p-4 rounded-2xl bg-slate-100 font-bold text-slate-800 appearance-none border-none">
-              <option value="Stabil">Stabil (Normal)</option>
-              <option value="Angespannt">Angespannt (Bullisch)</option>
-              <option value="Krise">Globale Krise (+Gold)</option>
-            </select>
+          <div className="p-6 bg-slate-50 rounded-[2rem] border">
+            <p className="text-[10px] font-black text-slate-400 uppercase mb-1">DXY Index</p>
+            <p className="text-2xl font-bold">{dxyIndex.toFixed(2)}</p>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
