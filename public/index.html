@@ -5,89 +5,100 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>GoldSense Pro</title>
-    <!-- Bibliotheken direkt laden -->
-    <script src="https://unpkg.com"></script>
-    <script src="https://unpkg.com"></script>
-    <script src="https://unpkg.com"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0b0e11; color: white; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; margin: 0; }
+        body { background-color: #0b0e11; color: white; font-family: monospace; margin: 0; overflow: hidden; }
         .safe-top { padding-top: env(safe-area-inset-top); }
+        .up { color: #00FF00; border-color: #00FF00; background: rgba(0, 255, 0, 0.1); }
+        .down { color: #ff4444; border-color: #ff4444; }
     </style>
 </head>
 <body>
-    <div id="root">
-        <!-- Lade-Indikator, falls das Skript hakt -->
-        <div id="loader" style="display:flex; justify-content:center; align-items:center; height:100vh; font-size:10px; color:#00FF00; letter-spacing:2px;">
-            BOOTING GOLDSENSE...
+    <div class="p-5 safe-top min-h-screen flex flex-col">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-[10px] font-black text-[#00FF00] tracking-widest uppercase">XAUUSD Terminal</h1>
+            <span id="status" class="text-[10px] font-bold text-yellow-500 uppercase">Syncing...</span>
+        </div>
+        
+        <!-- Kurse -->
+        <div class="grid grid-cols-2 gap-3 mb-6 text-center">
+            <div class="bg-[#131722] p-5 rounded-3xl border border-[#2a2e39] shadow-xl">
+                <div class="text-[9px] text-gray-500 font-bold uppercase mb-1 tracking-widest">Gold Price</div>
+                <div id="gold" class="text-2xl font-black tracking-tighter text-[#00FF00]">$5,012.15</div>
+            </div>
+            <div class="bg-[#131722] p-5 rounded-3xl border border-[#2a2e39] shadow-xl">
+                <div class="text-[9px] text-gray-500 font-bold uppercase mb-1 tracking-widest">DXY Index</div>
+                <div id="dxy" class="text-2xl font-black text-white tracking-tighter">99.82</div>
+            </div>
+        </div>
+
+        <!-- Signal -->
+        <div id="signal-box" class="p-10 rounded-[2.5rem] border-2 border-gray-800 mb-6 text-center transition-all duration-500">
+            <div id="signal-text" class="text-4xl font-black italic tracking-tighter leading-none text-gray-700 uppercase">Neutral</div>
+            <div class="text-[9px] mt-4 text-gray-500 font-black uppercase tracking-[0.3em]">Strategy Engine v3.0</div>
+        </div>
+
+        <!-- Chart -->
+        <div class="flex-grow rounded-[2rem] overflow-hidden border border-[#2a2e39] shadow-2xl relative mb-6">
+            <iframe src="https://s.tradingview.com" width="100%" height="100%" frameBorder="0"></iframe>
         </div>
     </div>
 
-    <script type="text/babel">
-        function App() {
-            const [gold, setGold] = React.useState(5012.15);
-            const [dxy, setDxy] = React.useState(99.82);
-            const [status, setStatus] = React.useState('SYNC');
+    <script>
+        // Variablen für Daten
+        let currentGold = 5012.15;
+        let currentDxy = 99.82;
 
-            React.useEffect(() => {
-                // Loader ausblenden, wenn App startet
-                document.getElementById('loader').style.display = 'none';
+        const goldEl = document.getElementById('gold');
+        const dxyEl = document.getElementById('dxy');
+        const statusEl = document.getElementById('status');
+        const signalBox = document.getElementById('signal-box');
+        const signalText = document.getElementById('signal-text');
 
-                const ws = new WebSocket('wss://://stream.binance.com');
-                ws.onopen = () => setStatus('LIVE');
-                ws.onmessage = (e) => {
-                    const data = JSON.parse(e.data);
-                    if (data.c) {
-                        setGold(parseFloat(data.c));
-                        setDxy(99.82 + (Math.random() - 0.5) * 0.05);
-                    }
-                };
-                return () => ws.close();
-            }, []);
+        // WebSocket Verbindung
+        function connect() {
+            const ws = new WebSocket('wss://://stream.binance.com');
 
-            const isBuy = dxy < 99.85;
+            ws.onopen = () => {
+                statusEl.innerText = 'Live ●';
+                statusEl.style.color = '#00FF00';
+            };
 
-            return (
-                <div className="p-5 safe-top min-h-screen">
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-[10px] font-black text-[#00FF00] tracking-widest uppercase">
-                            XAUUSD Terminal
-                        </h1>
-                        <span className="text-[10px] font-bold text-[#00FF00]">{status} ●</span>
-                    </div>
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.c) {
+                    const newGold = parseFloat(data.c);
                     
-                    <div className="grid grid-cols-2 gap-3 mb-6">
-                        <div className="bg-[#131722] p-5 rounded-2xl border border-[#2a2e39] shadow-xl text-center">
-                            <div className="text-[9px] text-gray-500 font-bold uppercase mb-1">Bid Price</div>
-                            <div className="text-2xl font-black text-[#00FF00] tracking-tighter">${gold.toFixed(2)}</div>
-                        </div>
-                        <div className="bg-[#131722] p-5 rounded-2xl border border-[#2a2e39] shadow-xl text-center">
-                            <div className="text-[9px] text-gray-500 font-bold uppercase mb-1">DXY Index</div>
-                            <div className="text-2xl font-black text-white tracking-tighter">{dxy.toFixed(2)}</div>
-                        </div>
-                    </div>
+                    // Gold Update
+                    goldEl.innerText = '$' + newGold.toLocaleString(undefined, {minimumFractionDigits: 2});
+                    
+                    // DXY Update (Simulation)
+                    currentDxy = 99.82 + (Math.random() - 0.5) * 0.04;
+                    dxyEl.innerText = currentDxy.toFixed(2);
 
-                    <div className={`p-10 rounded-[2.5rem] border-2 mb-6 text-center transition-all duration-500 ${isBuy ? 'border-[#00FF00] bg-[#00FF00]/10 shadow-[0_0_20px_rgba(0,255,0,0.2)]' : 'border-gray-800'}`}>
-                        <div className={`text-4xl font-black italic tracking-tighter leading-none ${isBuy ? 'text-[#00FF00]' : 'text-gray-700'}`}>
-                            {isBuy ? 'STRONG BUY' : 'NEUTRAL'}
-                        </div>
-                        <div className="text-[9px] mt-4 text-gray-500 font-black uppercase tracking-[0.3em]">Faxt Analytics v2.0</div>
-                    </div>
+                    // Strategie Logik
+                    if (currentDxy < 99.85) {
+                        signalBox.classList.add('up');
+                        signalText.innerText = 'Strong Buy';
+                        signalText.style.color = '#00FF00';
+                    } else {
+                        signalBox.classList.remove('up');
+                        signalText.innerText = 'Neutral';
+                        signalText.style.color = '#374151';
+                    }
+                }
+            };
 
-                    <div className="h-[300px] rounded-[2rem] overflow-hidden border border-[#2a2e39] shadow-2xl relative">
-                        <iframe 
-                            src="https://s.tradingview.com" 
-                            width="100%" 
-                            height="100%" 
-                            frameBorder="0"
-                        ></iframe>
-                    </div>
-                </div>
-            );
+            ws.onclose = () => {
+                statusEl.innerText = 'Reconnecting...';
+                statusEl.style.color = '#ffcc00';
+                setTimeout(connect, 3000);
+            };
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        // Start
+        connect();
     </script>
 </body>
 </html>
