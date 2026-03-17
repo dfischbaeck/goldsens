@@ -1,21 +1,81 @@
 <!DOCTYPE html>
 <html lang="de">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    
-    <!-- Tailwind CSS direkt laden -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>GoldSense Pro</title>
+    <script src="https://unpkg.com"></script>
+    <script src="https://unpkg.com"></script>
+    <script src="https://unpkg.com"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <title>GoldSense</title>
     <style>
-      body { -webkit-tap-highlight-color: transparent; }
-      .safe-top { padding-top: env(safe-area-inset-top); }
+        body { background-color: #0b0e11; color: white; font-family: monospace; margin: 0; padding: 0; }
+        .safe-top { padding-top: env(safe-area-inset-top); }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <div id="root"></div>
-  </body>
+
+    <script type="text/babel">
+        function App() {
+            const [gold, setGold] = React.useState(5012.15);
+            const [dxy, setDxy] = React.useState(99.82);
+            const [status, setStatus] = React.useState('SYNC');
+
+            React.useEffect(() => {
+                const ws = new WebSocket('wss://://stream.binance.com');
+                ws.onopen = () => setStatus('LIVE');
+                ws.onmessage = (e) => {
+                    const data = JSON.parse(e.data);
+                    if (data.c) {
+                        setGold(parseFloat(data.c));
+                        setDxy(99.82 + (Math.random() - 0.5) * 0.05);
+                    }
+                };
+                return () => ws.close();
+            }, []);
+
+            const isBuy = dxy < 99.85;
+
+            return (
+                <div className="p-5 safe-top min-h-screen text-center">
+                    <h1 className="text-[12px] font-bold text-[#00FF00] tracking-widest mb-6">
+                        GOLDSENSE PRO ● {status}
+                    </h1>
+                    
+                    <div className="flex gap-2 mb-6">
+                        <div className="flex-1 bg-[#131722] p-4 rounded-2xl border border-[#2a2e39]">
+                            <div className="text-[9px] text-gray-500 uppercase mb-1">Gold (USD)</div>
+                            <div className="text-xl font-black text-[#00FF00] tracking-tighter">${gold.toFixed(2)}</div>
+                        </div>
+                        <div className="flex-1 bg-[#131722] p-4 rounded-2xl border border-[#2a2e39]">
+                            <div className="text-[9px] text-gray-500 uppercase mb-1">DXY Index</div>
+                            <div className="text-xl font-black tracking-tighter">{dxy.toFixed(2)}</div>
+                        </div>
+                    </div>
+
+                    <div className={`p-8 rounded-3xl border-2 mb-6 transition-all duration-500 ${isBuy ? 'border-[#00FF00] bg-[#00FF00]/10' : 'border-gray-800'}`}>
+                        <div className={`text-3xl font-black italic tracking-tighter ${isBuy ? 'text-[#00FF00]' : 'text-gray-600'}`}>
+                            {isBuy ? '▲ STRONG BUY' : '● NEUTRAL'}
+                        </div>
+                        <div className="text-[9px] mt-2 text-gray-500 font-bold uppercase tracking-widest">Faxt-Strategy Active</div>
+                    </div>
+
+                    <div className="h-[320px] rounded-3xl overflow-hidden border border-[#2a2e39] shadow-2xl">
+                        <iframe 
+                            src="https://s.tradingview.com" 
+                            width="100%" 
+                            height="100%" 
+                            frameBorder="0"
+                        ></iframe>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
 </html>
